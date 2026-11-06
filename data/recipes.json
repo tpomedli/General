@@ -1,0 +1,115 @@
+{
+  "recipes": [
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-111111111111",
+      "title": "Peach iced tea",
+      "author": "Sam Okonkwo",
+      "ingredients": [
+        "4 black tea bags",
+        "2 ripe peaches",
+        "1/4 cup honey",
+        "4 cups water",
+        "Ice"
+      ],
+      "directions": [
+        "Steep the tea in 2 cups of hot water for 5 minutes, then discard the bags.",
+        "Stir in the honey until it dissolves, and add the remaining cold water.",
+        "Slice the peaches and muddle a few slices in the pitcher.",
+        "Chill, then serve over ice with the rest of the peaches."
+      ],
+      "createdAt": "2026-11-06T15:00:00.000Z",
+      "updatedAt": "2026-11-06T15:00:00.000Z",
+      "ownerKey": "sample",
+      "sample": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-222222222222",
+      "title": "Lemon pasta",
+      "author": "Jonah Ellis",
+      "ingredients": [
+        "12 oz spaghetti",
+        "3 lemons",
+        "1/2 cup olive oil",
+        "1/2 cup grated Parmesan",
+        "1 clove garlic",
+        "Salt and black pepper"
+      ],
+      "directions": [
+        "Boil the pasta in salted water until just tender.",
+        "Warm the olive oil with the garlic until fragrant, then take it off the heat.",
+        "Toss the drained pasta with the oil, lemon zest, lemon juice, and Parmesan.",
+        "Season with salt and pepper and serve right away."
+      ],
+      "createdAt": "2026-11-05T18:30:00.000Z",
+      "updatedAt": "2026-11-05T18:30:00.000Z",
+      "ownerKey": "sample",
+      "sample": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-333333333333",
+      "title": "Weeknight chili",
+      "author": "Ada Lovelace",
+      "ingredients": [
+        "1 lb ground turkey",
+        "1 onion, diced",
+        "1 can tomatoes",
+        "1 can black beans, drained",
+        "1 tbsp chili powder",
+        "Salt"
+      ],
+      "directions": [
+        "Brown the turkey with the onion in a wide pot.",
+        "Stir in the chili powder and cook until it smells toasty.",
+        "Add the tomatoes and beans and simmer for 25 minutes.",
+        "Season with salt and serve."
+      ],
+      "createdAt": "2026-11-04T12:15:00.000Z",
+      "updatedAt": "2026-11-04T12:15:00.000Z",
+      "ownerKey": "sample",
+      "sample": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-444444444444",
+      "title": "Tomato soup",
+      "author": "Priya Shah",
+      "ingredients": [
+        "2 tbsp olive oil",
+        "1 onion",
+        "2 cloves garlic",
+        "1 can whole tomatoes",
+        "2 cups broth",
+        "Salt"
+      ],
+      "directions": [
+        "Warm the oil and soften the onion and garlic.",
+        "Add the tomatoes and broth and simmer until the tomatoes break down.",
+        "Blend until smooth, then season with salt."
+      ],
+      "createdAt": "2026-11-03T19:45:00.000Z",
+      "updatedAt": "2026-11-03T19:45:00.000Z",
+      "ownerKey": "sample",
+      "sample": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-555555555555",
+      "title": "Skillet cornbread",
+      "author": "Maya Chen",
+      "ingredients": [
+        "1 cup cornmeal",
+        "1 cup buttermilk",
+        "1 egg",
+        "2 tbsp butter",
+        "1/2 tsp salt"
+      ],
+      "directions": [
+        "Heat a skillet in a 425\u00b0F oven with the butter until it melts.",
+        "Stir the cornmeal, buttermilk, egg, and salt into a thick batter.",
+        "Pour the batter into the hot skillet and bake until the top is golden, about 20 minutes."
+      ],
+      "createdAt": "2026-11-02T16:00:00.000Z",
+      "updatedAt": "2026-11-02T16:00:00.000Z",
+      "ownerKey": "sample",
+      "sample": true
+    }
+  ]
+}
