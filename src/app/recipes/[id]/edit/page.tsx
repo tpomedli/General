@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
+import { FileNotice } from "@/components/FileNotice";
 import { RecipeForm } from "@/components/RecipeForm";
 import { SignedOut } from "@/components/SignedOut";
-import { getRecipe } from "@/lib/recipes";
+import { getRecipe, RecipeBookError } from "@/lib/recipes";
 import { currentViewer, ownerKey } from "@/lib/viewer";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,13 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
   const viewer = await currentViewer();
   if (viewer instanceof Response) return <SignedOut />;
   const { id } = await params;
-  const recipe = await getRecipe(ownerKey(viewer), id);
+  let recipe;
+  try {
+    recipe = await getRecipe(ownerKey(viewer), id);
+  } catch (error) {
+    if (error instanceof RecipeBookError) return <FileNotice message={error.message} />;
+    throw error;
+  }
   if (!recipe) notFound();
 
   return (

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { FileNotice } from "@/components/FileNotice";
 import { SignedOut } from "@/components/SignedOut";
-import { listRecipes } from "@/lib/recipes";
+import { listRecipes, RecipeBookError } from "@/lib/recipes";
 import { currentViewer, ownerKey } from "@/lib/viewer";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,13 @@ function preview(ingredients: string[]): string {
 export default async function HomePage() {
   const viewer = await currentViewer();
   if (viewer instanceof Response) return <SignedOut />;
-  const recipes = await listRecipes(ownerKey(viewer));
+  let recipes;
+  try {
+    recipes = await listRecipes(ownerKey(viewer));
+  } catch (error) {
+    if (error instanceof RecipeBookError) return <FileNotice message={error.message} />;
+    throw error;
+  }
 
   if (recipes.length === 0) {
     return (
