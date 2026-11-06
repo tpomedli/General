@@ -78,7 +78,7 @@ export function getRecipe(ownerKey: string, id: string): Promise<Recipe | null> 
   return enqueue(async () => {
     if (!isId(id)) return null;
     const store = await readStore();
-    const record = store.recipes.find((item) => item.id === id && item.ownerKey === ownerKey);
+    const record = store.recipes.find((item) => item.id === id && canSee(item, ownerKey));
     return record ? toRecipe(record, ownerKey) : null;
   });
 }
@@ -110,7 +110,7 @@ export function updateRecipe(ownerKey: string, id: string, input: RecipeInput): 
   return enqueue(async () => {
     if (!isId(id)) return null;
     const store = await readStore();
-    const record = store.recipes.find((item) => item.id === id && item.ownerKey === ownerKey);
+    const record = store.recipes.find((item) => item.id === id && canSee(item, ownerKey));
     if (!record) return null;
     const updatedAt = new Date().toISOString();
     record.title = input.title;
@@ -127,7 +127,7 @@ export function deleteRecipe(ownerKey: string, id: string): Promise<boolean> {
   return enqueue(async () => {
     if (!isId(id)) return false;
     const store = await readStore();
-    const index = store.recipes.findIndex((item) => item.id === id && item.ownerKey === ownerKey);
+    const index = store.recipes.findIndex((item) => item.id === id && canSee(item, ownerKey));
     if (index < 0) return false;
     store.recipes.splice(index, 1);
     await writeStore(store);
@@ -183,8 +183,12 @@ async function writeStore(store: Store): Promise<void> {
   await rename(tmp, DATA_FILE);
 }
 
+function canSee(record: RecipeRecord, ownerKey: string): boolean {
+  return record.sample === true || record.ownerKey === ownerKey;
+}
+
 function toRecipe(record: RecipeRecord, ownerKey: string): Recipe | null {
-  if (record.ownerKey !== ownerKey) return null;
+  if (!canSee(record, ownerKey)) return null;
   if (typeof record.id !== "string" || !isId(record.id)) return null;
   const title = typeof record.title === "string" ? record.title.trim() : "";
   const author = typeof record.author === "string" ? record.author.trim() : "";
