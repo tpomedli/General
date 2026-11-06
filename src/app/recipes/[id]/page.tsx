@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteRecipe } from "@/components/DeleteRecipe";
 import { FileNotice } from "@/components/FileNotice";
+import { ShareRecipe } from "@/components/ShareRecipe";
 import { SignedOut } from "@/components/SignedOut";
 import { getRecipe, RecipeBookError } from "@/lib/recipes";
 import { currentViewer, ownerKey } from "@/lib/viewer";
@@ -26,6 +27,14 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       <h1>{recipe.title}</h1>
       <p className="byline">by {recipe.author}</p>
       <div className="toolbar">
+        <ShareRecipe
+          recipe={{
+            title: recipe.title,
+            author: recipe.author,
+            ingredients: recipe.ingredients,
+            directions: recipe.directions,
+          }}
+        />
         <Link className="ghost" href={`/recipes/${recipe.id}/edit`}>
           Edit
         </Link>

@@ -301,6 +301,58 @@ button, input, textarea { font: inherit; color: inherit; }
   color: var(--danger);
 }
 
+.share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.share-panel {
+  width: min(520px, 100%);
+  max-height: min(640px, calc(100vh - 40px));
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+}
+
+.share-panel h2 {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+}
+
+.share-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.share-panel textarea {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.share-notice {
+  margin: 0;
+  color: var(--muted);
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
