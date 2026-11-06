@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { formatRecipe, mailRecipe, type ShareableRecipe } from "@/lib/recipe-text";
+import { recipeFileName, recipeHtml, type ShareableRecipe } from "@/lib/recipe-html";
 
 export function ShareRecipe({ recipe }: { recipe: ShareableRecipe }) {
-  const text = formatRecipe(recipe);
-  const emailHref = mailRecipe(recipe);
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
+  const html = recipeHtml(recipe);
+  const filename = recipeFileName(recipe.title);
 
   useEffect(() => {
     if (!open) return;
@@ -22,39 +21,32 @@ export function ShareRecipe({ recipe }: { recipe: ShareableRecipe }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  async function share() {
-    setCopied(false);
+  async function shareFile() {
     setNotice("");
-    const payload: ShareData = { title: recipe.title, text };
-    if (typeof navigator.share === "function") {
-      const allowed = typeof navigator.canShare !== "function" || navigator.canShare(payload);
-      if (allowed) {
-        try {
-          await navigator.share(payload);
-          return;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-        }
-      }
-    }
-    setOpen(true);
-  }
-
-  async function copy() {
-    setNotice("");
+    const file = new File([html], filename, { type: "text/html" });
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setNotice("Copied. Paste it into a message.");
-    } catch {
-      setCopied(false);
-      setNotice("Select the recipe below and copy it.");
+      if (typeof navigator.share === "function" && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: recipe.title });
+        setNotice("Shared the HTML file.");
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
     }
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setNotice(`Saved ${filename}`);
   }
 
   return (
     <>
-      <button className="ghost" type="button" onClick={share}>
+      <button className="ghost" type="button" onClick={() => { setNotice(""); setOpen(true); }}>
         Share
       </button>
       {open ? (
@@ -74,17 +66,12 @@ export function ShareRecipe({ recipe }: { recipe: ShareableRecipe }) {
                 Close
               </button>
             </div>
-            <p className="lede">Copy it into a message, or email it.</p>
-            <textarea readOnly value={text} aria-label="Recipe text" />
+            <p className="lede">An HTML file, with artwork for the dish.</p>
+            <iframe className="share-frame" title={`${recipe.title} HTML file`} sandbox="" srcDoc={html} />
             <div className="actions">
-              <button className="primary" type="button" onClick={copy}>
-                {copied ? "Copied" : "Copy recipe"}
+              <button className="primary" type="button" onClick={shareFile}>
+                Share HTML file
               </button>
-              {emailHref ? (
-                <a className="ghost" href={emailHref}>
-                  Email
-                </a>
-              ) : null}
             </div>
             {notice ? <p className="share-notice">{notice}</p> : null}
           </div>
