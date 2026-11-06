@@ -1,21 +1,3 @@
 {
-  "recipes": [
-    {
-      "id": "dcea1363-4974-4ed8-8389-07955a5488dc",
-      "title": "Peach iced tea",
-      "author": "Sam Okonkwo",
-      "ingredients": [
-        "4 black tea bags",
-        "2 ripe peaches",
-        "1/4 cup honey"
-      ],
-      "directions": [
-        "Steep the tea, then let it cool.",
-        "Stir in sliced peaches and honey, then chill."
-      ],
-      "createdAt": "2026-11-06T11:09:29.201Z",
-      "updatedAt": "2026-11-06T11:09:29.201Z",
-      "ownerKey": "production:user:dev"
-    }
-  ]
+  "recipes": []
 }
