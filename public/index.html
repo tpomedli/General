@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="mast">
+      <p class="kicker">Search</p>
+      <h1>Look it up</h1>
+      <p class="lede">One query, one list. A Brave Search key turns this into full web results. A page or video address also lists video files that page links directly.</p>
+    </header>
+
+    <form id="job">
+      <label for="query">Query</label>
+      <div class="entry">
+        <input id="query" name="query" required autocomplete="off" spellcheck="false" placeholder="open source databases" />
+        <button type="submit" id="run">Search</button>
+      </div>
+    </form>
+
+    <p id="status" role="status"></p>
+    <section id="videos" hidden></section>
+    <ol id="results" class="result-list"></ol>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

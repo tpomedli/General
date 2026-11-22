@@ -1,0 +1,20 @@
+{
+  "name": "general",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Search the web and save direct video files linked from a page.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "scrape": "node src/cli.js scrape",
+    "search": "node src/cli.js search",
+    "map": "node src/cli.js map",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firecrawl": "^4.15.0"
+  }
+}
