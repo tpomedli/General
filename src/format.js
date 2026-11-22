@@ -27,7 +27,7 @@ export function parseArgs(argv) {
 export function formatScrape(doc) {
   const markdown = typeof doc?.markdown === "string" ? doc.markdown.trim() : "";
   const title = doc?.metadata?.title;
-  if (title && markdown && !markdown.startsWith("# ")) {
+  if (title && markdown && !markdown.startsWith("# ") && !markdown.includes(title)) {
     return `# ${title}\n\n${markdown}`;
   }
   return markdown;
@@ -39,15 +39,16 @@ function snippet(text, max = 180) {
   return `${flat.slice(0, max - 1).trimEnd()}…`;
 }
 
+export function webResults(data) {
+  const web = data == null ? undefined : data.web;
+  return Array.isArray(web) ? web : [];
+}
+
 export function formatSearch(data) {
-  const web = Array.isArray(data?.web)
-    ? data.web
-    : Array.isArray(data?.data?.web)
-      ? data.data.web
-      : [];
+  const web = webResults(data);
 
   if (web.length === 0) {
-    return JSON.stringify(data, null, 2);
+    return "No web results.";
   }
 
   return web

@@ -1,27 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { Firecrawl } from "firecrawl";
+import { createClient } from "./client.js";
 import { formatMap, formatScrape, formatSearch, parseArgs } from "./format.js";
-
-function loadEnvFile() {
-  if (!existsSync(".env")) return;
-  for (const line of readFileSync(".env", "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-    const eq = trimmed.indexOf("=");
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
-
-loadEnvFile();
 
 const usage = `Usage:
   npm run scrape -- https://example.com
@@ -31,12 +10,7 @@ const usage = `Usage:
 Reads FIRECRAWL_API_KEY and FIRECRAWL_API_URL from the environment.
 Scrape and search work without a key on Firecrawl's keyless free tier.`;
 
-export function createClient() {
-  return new Firecrawl({
-    apiKey: process.env.FIRECRAWL_API_KEY || undefined,
-    apiUrl: process.env.FIRECRAWL_API_URL || undefined,
-  });
-}
+export { createClient };
 
 export async function run(argv, client = createClient()) {
   const { command, input, limit } = parseArgs(argv);

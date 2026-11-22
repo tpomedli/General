@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatMap, formatScrape, formatSearch, parseArgs } from "../src/format.js";
+import { formatMap, formatScrape, formatSearch, parseArgs, webResults } from "../src/format.js";
 
 test("parseArgs keeps multi-word search input and a limit", () => {
   const parsed = parseArgs(["search", "open", "source", "crawlers", "--limit", "3"]);
@@ -31,6 +31,17 @@ test("formatSearch prints numbered web results", () => {
     web: [{ title: "Firecrawl", url: "https://firecrawl.dev", description: "Web data API" }],
   });
   assert.match(text, /^1\. Firecrawl\nhttps:\/\/firecrawl\.dev\nWeb data API$/);
+});
+
+test("formatSearch does not touch a throwing data getter", () => {
+  const data = {};
+  Object.defineProperty(data, "data", {
+    get() {
+      throw new Error("SearchData has no '.data'");
+    },
+  });
+  assert.equal(formatSearch(data), "No web results.");
+  assert.deepEqual(webResults(data), []);
 });
 
 test("formatSearch shortens long page text", () => {
