@@ -87,19 +87,64 @@ export function createSafeLookup(resolveNames = lookup) {
   };
 }
 
-function nodeResponse(incoming) {
+export function incomingResponse(incoming) {
   const headers = new Headers();
   for (const [key, value] of Object.entries(incoming.headers)) {
     if (value == null) continue;
     headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
   }
+  let closed = false;
+  const finish = (controller, action) => {
+    if (closed) return;
+    closed = true;
+    action(controller);
+  };
   const stream = new ReadableStream({
-    start(controller) {
-      incoming.on("data", (chunk) => controller.enqueue(new Uint8Array(chunk)));
-      incoming.on("end", () => controller.close());
-      incoming.on("error", (error) => controller.error(error));
+    pull(controller) {
+      if (closed) return;
+      const chunk = incoming.read();
+      if (chunk) {
+        controller.enqueue(new Uint8Array(chunk));
+        return;
+      }
+      if (incoming.readableEnded) {
+        finish(controller, (active) => active.close());
+        return;
+      }
+      return new Promise((resolve) => {
+        const cleanup = () => {
+          incoming.off("readable", onReadable);
+          incoming.off("end", onEnd);
+          incoming.off("error", onError);
+        };
+        const onReadable = () => {
+          cleanup();
+          if (closed) {
+            resolve();
+            return;
+          }
+          const next = incoming.read();
+          if (next) controller.enqueue(new Uint8Array(next));
+          else if (incoming.readableEnded) finish(controller, (active) => active.close());
+          resolve();
+        };
+        const onEnd = () => {
+          cleanup();
+          finish(controller, (active) => active.close());
+          resolve();
+        };
+        const onError = (error) => {
+          cleanup();
+          finish(controller, (active) => active.error(error));
+          resolve();
+        };
+        incoming.once("readable", onReadable);
+        incoming.once("end", onEnd);
+        incoming.once("error", onError);
+      });
     },
     cancel() {
+      closed = true;
       incoming.destroy();
     },
   });
@@ -115,7 +160,7 @@ function publicRequest(url, { headers } = {}) {
       headers,
       lookup: createSafeLookup(),
     }, (incoming) => {
-      resolve(nodeResponse(incoming));
+      resolve(incomingResponse(incoming));
     });
     req.setTimeout(20_000, () => {
       req.destroy(new InputError("That host did not respond."));
@@ -146,6 +191,16 @@ async function fetchPublic(url, fetchImpl, headers) {
   throw new InputError("That link redirected too many times.");
 }
 
+async function discard(response) {
+  const body = response?.body;
+  if (!body || body.locked) return;
+  try {
+    await body.cancel();
+  } catch {
+    // The body was already read or closed.
+  }
+}
+
 async function readLimited(response, max) {
   const reader = response.body?.getReader();
   if (!reader) return Buffer.alloc(0);
@@ -156,7 +211,17 @@ async function readLimited(response, max) {
     if (done) break;
     size += value.byteLength;
     if (size > max) {
-      await reader.cancel();
+      try {
+        reader.releaseLock();
+      } catch {
+        // A pending read keeps the lock; cancel through the reader instead.
+      }
+      try {
+        if (response.body?.locked) await reader.cancel();
+        else await response.body?.cancel();
+      } catch {
+        // The body is already closed.
+      }
       throw new InputError(max > 2_000_000 ? "That video is larger than 80 MB." : "That page is too large to scan.");
     }
     chunks.push(Buffer.from(value));
@@ -168,27 +233,35 @@ export async function findLinkedVideos(url, fetchImpl) {
   const start = assertUrl(url);
   if (VIDEO_EXT.test(videoPath(start))) return { url: start, videos: [start] };
   const { response, url: finalUrl } = await fetchPublic(start, fetchImpl, { accept: "text/html,video/*;q=0.9,*/*;q=0.1" });
-  if (!response.ok) throw new InputError("That page could not be opened.");
-  const type = (response.headers.get("content-type") || "").toLowerCase();
-  if (isDirectVideo(finalUrl, type)) return { url: finalUrl, videos: [finalUrl] };
-  if (!type.includes("html") && !type.includes("xml") && !type.includes("text/plain")) {
-    return { url: finalUrl, videos: [] };
+  try {
+    if (!response.ok) throw new InputError("That page could not be opened.");
+    const type = (response.headers.get("content-type") || "").toLowerCase();
+    if (isDirectVideo(finalUrl, type)) return { url: finalUrl, videos: [finalUrl] };
+    if (!type.includes("html") && !type.includes("xml") && !type.includes("text/plain")) {
+      return { url: finalUrl, videos: [] };
+    }
+    const html = (await readLimited(response, MAX_HTML)).toString("utf8");
+    return { url: finalUrl, videos: videoLinksFromHtml(html, finalUrl) };
+  } finally {
+    await discard(response);
   }
-  const html = (await readLimited(response, MAX_HTML)).toString("utf8");
-  return { url: finalUrl, videos: videoLinksFromHtml(html, finalUrl) };
 }
 
 export async function downloadVideo(url, fetchImpl) {
   const { response, url: finalUrl } = await fetchPublic(assertUrl(url), fetchImpl, { accept: "video/*,*/*;q=0.1" });
-  if (!response.ok) throw new InputError("That video could not be downloaded.");
-  const type = (response.headers.get("content-type") || "application/octet-stream").split(";")[0].trim();
-  if (!isDirectVideo(finalUrl, type)) {
-    throw new InputError("That address is a page, not a direct video file. Look for linked videos first.");
+  try {
+    if (!response.ok) throw new InputError("That video could not be downloaded.");
+    const type = (response.headers.get("content-type") || "application/octet-stream").split(";")[0].trim();
+    if (!isDirectVideo(finalUrl, type)) {
+      throw new InputError("That address is a page, not a direct video file. Look for linked videos first.");
+    }
+    const bytes = await readLimited(response, MAX_VIDEO);
+    return {
+      filename: filenameFor(finalUrl, type),
+      contentType: type.startsWith("video/") ? type : "application/octet-stream",
+      bytes,
+    };
+  } finally {
+    await discard(response);
   }
-  const bytes = await readLimited(response, MAX_VIDEO);
-  return {
-    filename: filenameFor(finalUrl, type),
-    contentType: type.startsWith("video/") ? type : "application/octet-stream",
-    bytes,
-  };
 }

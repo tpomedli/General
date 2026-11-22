@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSafeLookup, downloadVideo, findLinkedVideos, videoLinksFromHtml } from "../src/videos.js";
+import { PassThrough } from "node:stream";
+import { createSafeLookup, downloadVideo, findLinkedVideos, incomingResponse, videoLinksFromHtml } from "../src/videos.js";
 
 test("lookup refuses a name that points at loopback", () => {
   const lookup = createSafeLookup((_hostname, _options, callback) => {
@@ -45,6 +46,96 @@ test("a query ending in .mp4 is still scanned as a page", async () => {
   });
   assert.equal(fetched, true);
   assert.deepEqual(found.videos, ["https://example.com/real.mp4"]);
+});
+
+test("unread video responses are closed", async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const response = new Response(body, { status: 200, headers: { "content-type": "video/mp4" } });
+  const found = await findLinkedVideos("https://cdn.example.com/watch", async () => response);
+  assert.deepEqual(found.videos, ["https://cdn.example.com/watch"]);
+  assert.equal(cancelled, true);
+});
+
+test("an oversized download stops and closes the body", async () => {
+  let cancelled = false;
+  const chunk = new Uint8Array(1024 * 1024);
+  const body = new ReadableStream({
+    pull(controller) {
+      if (cancelled) return;
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const response = new Response(body, { headers: { "content-type": "video/mp4" } });
+  await assert.rejects(
+    () => downloadVideo("https://cdn.example.com/big.mp4", async () => response),
+    /larger than 80 MB/,
+  );
+  assert.equal(cancelled, true);
+});
+
+test("an oversized socket is destroyed", async () => {
+  const incoming = new PassThrough();
+  incoming.statusCode = 200;
+  incoming.headers = { "content-type": "video/mp4" };
+  let destroyed = false;
+  const originalDestroy = incoming.destroy.bind(incoming);
+  incoming.destroy = () => {
+    destroyed = true;
+    originalDestroy();
+  };
+  const response = incomingResponse(incoming);
+  const chunk = Buffer.alloc(1024 * 1024, 1);
+  const writing = (async () => {
+    try {
+      for (let i = 0; i < 90 && !destroyed; i += 1) {
+        if (!incoming.write(chunk)) {
+          await new Promise((resolve) => {
+            const done = () => {
+              incoming.off("drain", done);
+              incoming.off("close", done);
+              resolve();
+            };
+            incoming.on("drain", done);
+            incoming.on("close", done);
+          });
+        }
+      }
+    } catch {
+      // The capped reader destroys the socket.
+    }
+  })();
+  await assert.rejects(
+    () => downloadVideo("https://cdn.example.com/big.mp4", async () => response),
+    /larger than 80 MB/,
+  );
+  await writing;
+  assert.equal(destroyed, true);
+});
+
+test("an incoming response pauses until it is read", async () => {
+  const incoming = new PassThrough();
+  incoming.statusCode = 200;
+  incoming.headers = { "content-type": "video/mp4" };
+  const response = incomingResponse(incoming);
+  const reader = response.body.getReader();
+  incoming.write(Buffer.from("abcd"));
+  const first = await reader.read();
+  assert.equal(Buffer.from(first.value).toString(), "abcd");
+  const chunk = Buffer.alloc(64 * 1024, 1);
+  let writes = 0;
+  for (; writes < 40; writes += 1) {
+    if (!incoming.write(chunk)) break;
+  }
+  assert.ok(writes < 40);
+  await reader.cancel();
 });
 
 test("downloadVideo saves a direct file and refuses a page", async () => {

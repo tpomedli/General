@@ -58,12 +58,11 @@ function saveVideo(url, button) {
     if (settled) return;
     settled = true;
     clearInterval(timer);
-    clearTimeout(giveUp);
     button.disabled = false;
     button.textContent = label;
     if (message) status.textContent = message;
     document.cookie = `${token}=; Max-Age=0; Path=/`;
-    setTimeout(() => frame.remove(), 30_000);
+    if (message) frame.remove();
   };
   frame.addEventListener("load", () => {
     if (document.cookie.split("; ").includes(`${token}=1`)) {
@@ -82,7 +81,6 @@ function saveVideo(url, button) {
   const timer = setInterval(() => {
     if (document.cookie.split("; ").includes(`${token}=1`)) finish("Saved");
   }, 200);
-  const giveUp = setTimeout(() => finish("Download", "That video took too long to save."), 60_000);
   const form = el("form");
   form.method = "POST";
   form.action = "/api/download";
