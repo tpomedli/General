@@ -46,46 +46,52 @@ async function post(path, body) {
   return response;
 }
 
-function downloadFrame() {
-  let frame = document.querySelector("#downloads");
-  if (frame) return frame;
-  frame = el("iframe", null, { id: "downloads", name: "downloads", title: "Download" });
-  document.body.append(frame);
-  return frame;
-}
-
 function saveVideo(url, button) {
-  const frame = downloadFrame();
-  const token = `${Date.now()}`;
-  frame.dataset.pending = token;
+  if (button.disabled) return;
+  const token = `dl${Date.now()}`;
   button.disabled = true;
   button.textContent = "Saving…";
-  frame.onload = () => {
-    if (frame.dataset.pending !== token) return;
+  const frame = el("iframe", null, { name: token, title: "Download", class: "downloads" });
+  document.body.append(frame);
+  let settled = false;
+  const finish = (label, message) => {
+    if (settled) return;
+    settled = true;
+    clearInterval(timer);
+    clearTimeout(giveUp);
+    button.disabled = false;
+    button.textContent = label;
+    if (message) status.textContent = message;
+    document.cookie = `${token}=; Max-Age=0; Path=/`;
+    setTimeout(() => frame.remove(), 30_000);
+  };
+  frame.addEventListener("load", () => {
+    if (document.cookie.split("; ").includes(`${token}=1`)) {
+      finish("Saved");
+      return;
+    }
     let message = "";
     try {
-      message = JSON.parse(frame.contentDocument?.body?.textContent || "{}").error || "";
+      const text = frame.contentDocument?.body?.textContent || "";
+      message = text ? JSON.parse(text).error || "" : "";
     } catch {
       message = "";
     }
-    button.disabled = false;
-    if (message) {
-      status.textContent = message;
-      button.textContent = "Download";
-      return;
-    }
-    button.textContent = "Saved";
-  };
+    if (message) finish("Download", message);
+  });
+  const timer = setInterval(() => {
+    if (document.cookie.split("; ").includes(`${token}=1`)) finish("Saved");
+  }, 200);
+  const giveUp = setTimeout(() => finish("Download", "That video took too long to save."), 60_000);
   const form = el("form");
   form.method = "POST";
   form.action = "/api/download";
-  form.target = "downloads";
+  form.target = token;
   form.append(el("input", null, { type: "hidden", name: "url", value: url }));
+  form.append(el("input", null, { type: "hidden", name: "token", value: token }));
   document.body.append(form);
   form.submit();
   form.remove();
-  button.textContent = "Saved";
-  button.disabled = false;
 }
 
 function videoRow(url) {

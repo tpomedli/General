@@ -71,7 +71,7 @@ button {
 button.secondary { background: transparent; color: var(--ink); }
 button:disabled { opacity: 0.55; cursor: wait; }
 
-#downloads {
+.downloads {
   position: absolute;
   width: 0;
   height: 0;

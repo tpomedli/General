@@ -168,13 +168,17 @@ export function createApp(options = {}) {
       if (url.pathname === "/api/download") {
         const file = await download(body.url);
         const filename = file.filename.replace(/["\r\n]/g, "");
-        res.writeHead(200, {
+        const headers = {
           "content-type": file.contentType,
           "content-length": file.bytes.length,
           "content-disposition": `attachment; filename="${filename}"`,
           "x-content-type-options": "nosniff",
           "cache-control": "no-store",
-        });
+        };
+        if (typeof body.token === "string" && /^dl\d{8,}$/.test(body.token)) {
+          headers["set-cookie"] = `${body.token}=1; Path=/; SameSite=Strict; Max-Age=120`;
+        }
+        res.writeHead(200, headers);
         res.end(file.bytes);
         return;
       }

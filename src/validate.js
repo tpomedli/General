@@ -89,6 +89,19 @@ function isBlockedIpv4(parts) {
   return false;
 }
 
+export function isBlockedIp(address) {
+  return typeof address === "string" && isBlockedHost(address);
+}
+
+export function choosePublicAddress(addresses, family) {
+  const list = (Array.isArray(addresses) ? addresses : []).filter((item) => item && typeof item.address === "string");
+  const wanted = family === 4 || family === 6 ? family : 0;
+  if (!list.length || list.some((item) => isBlockedIp(item.address))) {
+    throw new InputError("That host is not available.");
+  }
+  return list.find((item) => !wanted || item.family === wanted) || list[0];
+}
+
 export function assertUrl(value) {
   if (typeof value !== "string" || value.length === 0 || value.length > MAX_URL_LENGTH) {
     throw new InputError("Enter an http or https URL.");

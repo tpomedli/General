@@ -79,10 +79,11 @@ test("search returns one list and can include direct videos", async () => {
     const form = await fetch(`http://127.0.0.1:${port}/api/download`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ url: "https://cdn.example.com/clip.mp4" }),
+      body: new URLSearchParams({ url: "https://cdn.example.com/clip.mp4", token: "dl12345678" }),
     });
     assert.equal(form.status, 200);
     assert.equal(Buffer.from(await form.arrayBuffer()).toString(), "videobytes");
+    assert.match(form.headers.get("set-cookie"), /dl12345678=1/);
   } finally {
     server.close();
   }
