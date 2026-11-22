@@ -3,40 +3,27 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scraper</title>
+    <title>Search</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
     <header class="mast">
-      <p class="kicker">Firecrawl</p>
-      <h1>Scraper</h1>
-      <p class="lede">Scrape a page, search the web, or map a site. The links below are ready to run.</p>
+      <p class="kicker">Search</p>
+      <h1>Look it up</h1>
+      <p class="lede">One query, one list. A Brave Search key turns this into full web results. A page or video address also lists video files that page links directly.</p>
     </header>
 
-    <section class="links" aria-labelledby="links-heading">
-      <h2 id="links-heading">Links</h2>
-      <ul id="link-list"></ul>
-    </section>
-
     <form id="job">
-      <div class="modes" role="tablist" aria-label="Job">
-        <button type="button" id="mode-scrape" data-mode="scrape" role="tab" aria-selected="true">Scrape</button>
-        <button type="button" id="mode-search" data-mode="search" role="tab" aria-selected="false">Search</button>
-        <button type="button" id="mode-map" data-mode="map" role="tab" aria-selected="false">Map</button>
-      </div>
-      <label id="field-label" for="query">Page</label>
+      <label for="query">Query</label>
       <div class="entry">
-        <input id="query" name="query" required autocomplete="off" spellcheck="false" value="https://ultimatewebscraper.com/claude" />
-        <label class="limit" id="limit-wrap" for="limit" hidden>
-          Limit
-          <input id="limit" name="limit" type="number" min="1" max="40" value="5" />
-        </label>
-        <button type="submit" id="run">Run</button>
+        <input id="query" name="query" required autocomplete="off" spellcheck="false" placeholder="open source databases" />
+        <button type="submit" id="run">Search</button>
       </div>
     </form>
 
     <p id="status" role="status"></p>
-    <article id="result" aria-live="polite"></article>
+    <section id="videos" hidden></section>
+    <ol id="results" class="result-list"></ol>
     <script src="/app.js" type="module"></script>
   </body>
 </html>

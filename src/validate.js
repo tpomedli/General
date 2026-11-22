@@ -71,7 +71,7 @@ export function assertUrl(value) {
     throw new InputError("Remove the username and password from the URL.");
   }
   if (isBlockedHost(url.hostname)) {
-    throw new InputError("That host is not available from this scraper.");
+    throw new InputError("That host is not available.");
   }
   return url.toString();
 }

@@ -2,10 +2,12 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mapSite, scrapePage, searchWeb } from "./actions.js";
-import { createClient } from "./client.js";
-import { links } from "./links.js";
-import { InputError } from "./validate.js";
+import { loadEnvFile } from "./env.js";
+import { searchWeb } from "./search.js";
+import { downloadVideo, findLinkedVideos } from "./videos.js";
+import { InputError, publicHttpUrl } from "./validate.js";
+
+loadEnvFile();
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 const types = {
@@ -40,13 +42,13 @@ function sendJson(res, status, body) {
 function publicError(error) {
   if (error instanceof InputError) return { status: 400, error: error.message };
   const message = error instanceof Error ? error.message : "Request failed.";
-  if (/fc-|bearer|api[_-]?key/i.test(message)) {
-    return { status: 502, error: "Firecrawl could not complete that request." };
+  if (/subscription-token|api[_-]?key|bearer /i.test(message)) {
+    return { status: 502, error: "Search could not run that query." };
   }
   return { status: 502, error: message.slice(0, 300) };
 }
 
-function readJson(req) {
+function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -60,12 +62,18 @@ function readJson(req) {
       chunks.push(chunk);
     });
     req.on("end", () => {
-      if (size === 0) {
+      const raw = Buffer.concat(chunks).toString("utf8");
+      const type = String(req.headers["content-type"] || "");
+      if (!raw) {
         resolve({});
         return;
       }
+      if (type.includes("application/x-www-form-urlencoded")) {
+        resolve(Object.fromEntries(new URLSearchParams(raw)));
+        return;
+      }
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+        resolve(JSON.parse(raw));
       } catch {
         reject(new InputError("Send a JSON body."));
       }
@@ -99,16 +107,15 @@ function staticFile(urlPath) {
   return file;
 }
 
-export function createApp(client = createClient()) {
+export function createApp(options = {}) {
+  const search = options.search || ((query) => searchWeb(query));
+  const findVideos = options.findVideos || ((url) => findLinkedVideos(url));
+  const download = options.download || ((url) => downloadVideo(url));
+
   return createServer(async (req, res) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     if (!sameOrigin(req)) {
       sendJson(res, 403, { error: "Cross-origin requests are refused." });
-      return;
-    }
-
-    if (req.method === "GET" && url.pathname === "/api/links") {
-      sendJson(res, 200, { links });
       return;
     }
 
@@ -127,7 +134,7 @@ export function createApp(client = createClient()) {
       return;
     }
 
-    if (req.method !== "POST" || !url.pathname.startsWith("/api/")) {
+    if (req.method !== "POST") {
       sendJson(res, 405, { error: "Method not allowed." });
       return;
     }
@@ -139,21 +146,41 @@ export function createApp(client = createClient()) {
     }
 
     try {
-      const body = await readJson(req);
-      if (url.pathname === "/api/scrape") {
-        sendJson(res, 200, await scrapePage(client, body.url));
-        return;
-      }
+      const body = await readBody(req);
       if (url.pathname === "/api/search") {
-        sendJson(res, 200, await searchWeb(client, body.query, body.limit));
+        const found = await search(body.query);
+        let videos = [];
+        if (publicHttpUrl(found.query) || publicHttpUrl(body.query)) {
+          const page = publicHttpUrl(body.query) || found.query;
+          try {
+            videos = (await findVideos(page)).videos;
+          } catch (error) {
+            found.videoError = error instanceof Error ? error.message : "No videos found.";
+          }
+        }
+        sendJson(res, 200, { ...found, videos });
         return;
       }
-      if (url.pathname === "/api/map") {
-        sendJson(res, 200, await mapSite(client, body.url, body.limit));
+      if (url.pathname === "/api/videos") {
+        sendJson(res, 200, await findVideos(body.url));
+        return;
+      }
+      if (url.pathname === "/api/download") {
+        const file = await download(body.url);
+        const filename = file.filename.replace(/["\r\n]/g, "");
+        res.writeHead(200, {
+          "content-type": file.contentType,
+          "content-length": file.bytes.length,
+          "content-disposition": `attachment; filename="${filename}"`,
+          "x-content-type-options": "nosniff",
+          "cache-control": "no-store",
+        });
+        res.end(file.bytes);
         return;
       }
       sendJson(res, 404, { error: "Not found." });
     } catch (error) {
+      if (res.headersSent) return;
       const payload = publicError(error);
       sendJson(res, payload.status, { error: payload.error });
     }
@@ -167,6 +194,6 @@ if (invokedDirectly) {
   const port = Number(process.env.PORT) || 4173;
   const server = createApp();
   server.listen(port, "127.0.0.1", () => {
-    console.log(`Scraper listening on http://127.0.0.1:${port}`);
+    console.log(`Search listening on http://127.0.0.1:${port}`);
   });
 }

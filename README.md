@@ -1,8 +1,10 @@
 # General
 
-A scraper for [Firecrawl](https://github.com/firecrawl/firecrawl). The web app scrapes a page to markdown, searches the web, and maps the URLs on a site. The command line does the same three jobs.
+A search page for your Mac. One query returns one list. With `BRAVE_SEARCH_API_KEY` set, results come from Brave Search. Without it, results come from Wikipedia and DuckDuckGo instant answers.
 
-The link list starts with the Claude connector page: <https://ultimatewebscraper.com/claude>.
+Paste a page or a video address to list video files that address links to, then download them. This saves direct files such as `.mp4` and `.webm`. Players that hide the file, including YouTube, are left alone.
+
+The command line can still scrape, search, and map with Firecrawl.
 
 ## Setup
 
@@ -11,7 +13,9 @@ npm install
 cp .env.example .env
 ```
 
-`FIRECRAWL_API_KEY` is optional. Scrape and search use Firecrawl's keyless free tier when it is empty. Set `FIRECRAWL_API_URL` when you want a local server, such as `http://localhost:3002` from `firecrawl-local serve`.
+## On a Mac
+
+Double-click `mac/Search.command`. The first time, macOS may ask you to confirm opening a file from the internet. It installs dependencies if needed, starts the app, and opens it in the browser. Node.js 22 or newer has to be installed.
 
 ## Web app
 
@@ -19,14 +23,14 @@ cp .env.example .env
 npm start
 ```
 
-Open <http://127.0.0.1:4173>. Choose Scrape, Search, or Map, then run it. The Claude link is filled in and can be scraped from the list.
+Open <http://127.0.0.1:4173>. Search from the box. On a result, choose Linked videos. On a page or file address, the direct videos are listed above the results.
 
 ## Commands
 
 ```bash
-npm run scrape -- https://firecrawl.dev
+npm run scrape -- https://example.com
 npm run search -- "open source web crawlers" --limit 5
-npm run map -- https://firecrawl.dev --limit 20
+npm run map -- https://example.com --limit 20
 ```
 
 Node.js 22 or newer is required.

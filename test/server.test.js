@@ -1,18 +1,7 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import test from "node:test";
-import { links } from "../src/links.js";
 import { createApp } from "../src/server.js";
-
-function throwingSearch() {
-  const data = {};
-  Object.defineProperty(data, "data", {
-    get() {
-      throw new Error("SearchData has no '.data'");
-    },
-  });
-  return data;
-}
 
 function listen(server) {
   server.listen(0, "127.0.0.1");
@@ -28,73 +17,86 @@ async function request(port, path, { method = "GET", body, origin } = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const text = await response.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
+  const type = response.headers.get("content-type") || "";
+  if (type.includes("json") || type.startsWith("text/")) {
+    const text = await response.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    return { status: response.status, text, json, headers: response.headers };
   }
-  return { status: response.status, text, json };
+  const bytes = Buffer.from(await response.arrayBuffer());
+  return { status: response.status, bytes, headers: response.headers };
 }
 
-test("the Claude page is the first link", () => {
-  assert.equal(links[0].url, "https://ultimatewebscraper.com/claude");
-});
-
-test("the app serves that link and refuses a bad scrape", async () => {
+test("search returns one list and can include direct videos", async () => {
   const server = createApp({
-    async scrape(url) {
-      return { markdown: `Scraped ${url}`, metadata: { title: "Fetched" } };
+    async search(query) {
+      return {
+        source: "brave",
+        query,
+        results: [{ title: "Example", url: "https://example.com", description: "A page" }],
+      };
     },
-    async search() {
-      return throwingSearch();
+    async findVideos(url) {
+      assert.equal(url, "https://example.com/watch");
+      return { videos: ["https://cdn.example.com/clip.mp4"] };
     },
-    async map() {
-      return { links: ["https://example.com/a", "javascript:alert(1)"] };
+    async download() {
+      return { filename: "clip.mp4", contentType: "video/mp4", bytes: Buffer.from("videobytes") };
     },
   });
   const port = await listen(server);
   try {
     const page = await request(port, "/");
     assert.equal(page.status, 200);
-    assert.match(page.text, /ultimatewebscraper\.com\/claude/);
-
-    const listed = await request(port, "/api/links");
-    assert.equal(listed.json.links[0].url, "https://ultimatewebscraper.com/claude");
-
-    const blocked = await request(port, "/api/scrape", {
-      method: "POST",
-      body: { url: "http://127.0.0.1/secret" },
-    });
-    assert.equal(blocked.status, 400);
-
-    const foreign = await request(port, "/api/scrape", {
-      method: "POST",
-      origin: "https://evil.example",
-      body: { url: "https://example.com" },
-    });
-    assert.equal(foreign.status, 403);
-
-    const scraped = await request(port, "/api/scrape", {
-      method: "POST",
-      body: { url: "https://ultimatewebscraper.com/claude" },
-    });
-    assert.equal(scraped.status, 200);
-    assert.match(scraped.json.markdown, /ultimatewebscraper\.com\/claude/);
+    assert.match(page.text, /Look it up/);
 
     const searched = await request(port, "/api/search", {
       method: "POST",
-      body: { query: "nothing here", limit: 3 },
+      body: { query: "https://example.com/watch" },
     });
-    assert.equal(searched.status, 200);
-    assert.deepEqual(searched.json.results, []);
+    assert.equal(searched.json.results[0].title, "Example");
+    assert.deepEqual(searched.json.videos, ["https://cdn.example.com/clip.mp4"]);
 
-    const mapped = await request(port, "/api/map", {
+    const foreign = await request(port, "/api/search", {
       method: "POST",
-      body: { url: "https://example.com", limit: 5 },
+      origin: "https://evil.example",
+      body: { query: "example" },
     });
-    assert.deepEqual(mapped.json.links, ["https://example.com/a"]);
+    assert.equal(foreign.status, 403);
+
+    const saved = await request(port, "/api/download", {
+      method: "POST",
+      body: { url: "https://cdn.example.com/clip.mp4" },
+    });
+    assert.equal(saved.bytes.toString(), "videobytes");
+    assert.match(saved.headers.get("content-disposition"), /clip\.mp4/);
+
+    const form = await fetch(`http://127.0.0.1:${port}/api/download`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ url: "https://cdn.example.com/clip.mp4" }),
+    });
+    assert.equal(form.status, 200);
+    assert.equal(Buffer.from(await form.arrayBuffer()).toString(), "videobytes");
+  } finally {
+    server.close();
+  }
+});
+
+test("download refuses a private address", async () => {
+  const server = createApp();
+  const port = await listen(server);
+  try {
+    const blocked = await request(port, "/api/download", {
+      method: "POST",
+      body: { url: "http://127.0.0.1/secret.mp4" },
+    });
+    assert.equal(blocked.status, 400);
   } finally {
     server.close();
   }

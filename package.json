@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Scrape, search, and map the web with Firecrawl.",
+  "description": "Search the web and save direct video files linked from a page.",
   "engines": {
     "node": ">=22"
   },
