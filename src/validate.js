@@ -30,27 +30,62 @@ function isBlockedHost(hostname) {
   }
 
   const ipv4 = ipv4Parts(host);
-  if (ipv4) {
-    const [a, b] = ipv4;
-    if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true;
-    return false;
-  }
+  if (ipv4) return isBlockedIpv4(ipv4);
 
   const ipv6 = host.startsWith("[") ? host.slice(1, -1) : host;
-  if (ipv6.includes(":")) {
-    const normalized = ipv6.toLowerCase();
-    if (normalized === "::1" || normalized === "::") return true;
-    if (normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd")) {
-      return true;
-    }
-    const mapped = /::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(normalized);
-    if (mapped && isBlockedHost(mapped[1])) return true;
-  }
+  if (!ipv6.includes(":")) return false;
+  const groups = expandIpv6(ipv6);
+  if (!groups) return true;
+  const loopback = groups[7] === 1 && groups.slice(0, 7).every((part) => part === 0);
+  if (groups.every((part) => part === 0) || loopback) return true;
+  if ((groups[0] & 0xffc0) === 0xfe80 || (groups[0] & 0xfe00) === 0xfc00) return true;
+  const embedded = embeddedIpv4(groups);
+  return embedded ? isBlockedIpv4(embedded) : false;
+}
 
+function expandIpv6(address) {
+  let text = address.toLowerCase();
+  const dotted = /:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(text);
+  if (dotted) {
+    const parts = ipv4Parts(dotted[1]);
+    if (!parts) return null;
+    const hi = ((parts[0] << 8) | parts[1]).toString(16);
+    const lo = ((parts[2] << 8) | parts[3]).toString(16);
+    text = `${text.slice(0, dotted.index)}:${hi}:${lo}`;
+  }
+  const sides = text.split("::");
+  if (sides.length > 2) return null;
+  const parseSide = (side) => {
+    if (!side) return [];
+    return side.split(":").map((part) => (/^[0-9a-f]{1,4}$/.test(part) ? Number.parseInt(part, 16) : Number.NaN));
+  };
+  const left = parseSide(sides[0]);
+  const right = sides.length === 2 ? parseSide(sides[1]) : [];
+  if ([...left, ...right].some((part) => Number.isNaN(part))) return null;
+  if (sides.length === 1) return left.length === 8 ? left : null;
+  const missing = 8 - left.length - right.length;
+  if (missing < 1) return null;
+  return [...left, ...Array(missing).fill(0), ...right];
+}
+
+function embeddedIpv4(groups) {
+  const [a, b, c, d, e, f, g, h] = groups;
+  const tail = [(g >> 8) & 255, g & 255, (h >> 8) & 255, h & 255];
+  const prefix = a === 0 && b === 0 && c === 0 && d === 0 && e === 0;
+  const mapped = prefix && f === 0xffff;
+  const compatible = prefix && f === 0;
+  const nat64 = a === 0x64 && b === 0xff9b && c === 0 && d === 0 && e === 0 && f === 0;
+  const nat64Local = a === 0x64 && b === 0xff9b && c === 1 && d === 0 && e === 0 && f === 0;
+  return mapped || compatible || nat64 || nat64Local ? tail : null;
+}
+
+function isBlockedIpv4(parts) {
+  const [a, b] = parts;
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
   return false;
 }
 

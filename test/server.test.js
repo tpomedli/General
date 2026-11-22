@@ -97,6 +97,11 @@ test("download refuses a private address", async () => {
       body: { url: "http://127.0.0.1/secret.mp4" },
     });
     assert.equal(blocked.status, 400);
+    const mapped = await request(port, "/api/download", {
+      method: "POST",
+      body: { url: "http://[::ffff:127.0.0.1]/secret.mp4" },
+    });
+    assert.equal(mapped.status, 400);
   } finally {
     server.close();
   }
