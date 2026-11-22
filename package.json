@@ -1,0 +1,20 @@
+{
+  "name": "general",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scrape, search, and map the web with Firecrawl.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "scrape": "node src/cli.js scrape",
+    "search": "node src/cli.js search",
+    "map": "node src/cli.js map",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firecrawl": "^4.15.0"
+  }
+}
