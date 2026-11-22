@@ -94,57 +94,66 @@ export function incomingResponse(incoming) {
     headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
   }
   let closed = false;
+  let failed = null;
+  let ended = false;
+  let waiting = null;
   const finish = (controller, action) => {
     if (closed) return;
     closed = true;
     action(controller);
   };
+  const wake = () => {
+    const current = waiting;
+    waiting = null;
+    current?.();
+  };
+  incoming.on("error", (error) => {
+    if (closed || failed) return;
+    failed = error;
+    wake();
+  });
+  incoming.on("end", () => {
+    ended = true;
+    wake();
+  });
+  incoming.on("readable", wake);
   const stream = new ReadableStream({
     pull(controller) {
       if (closed) return;
+      if (failed) {
+        finish(controller, (active) => active.error(failed));
+        return;
+      }
       const chunk = incoming.read();
       if (chunk) {
         controller.enqueue(new Uint8Array(chunk));
         return;
       }
-      if (incoming.readableEnded) {
+      if (ended || incoming.readableEnded) {
         finish(controller, (active) => active.close());
         return;
       }
       return new Promise((resolve) => {
-        const cleanup = () => {
-          incoming.off("readable", onReadable);
-          incoming.off("end", onEnd);
-          incoming.off("error", onError);
-        };
-        const onReadable = () => {
-          cleanup();
+        waiting = () => {
           if (closed) {
+            resolve();
+            return;
+          }
+          if (failed) {
+            finish(controller, (active) => active.error(failed));
             resolve();
             return;
           }
           const next = incoming.read();
           if (next) controller.enqueue(new Uint8Array(next));
-          else if (incoming.readableEnded) finish(controller, (active) => active.close());
+          else if (ended || incoming.readableEnded) finish(controller, (active) => active.close());
           resolve();
         };
-        const onEnd = () => {
-          cleanup();
-          finish(controller, (active) => active.close());
-          resolve();
-        };
-        const onError = (error) => {
-          cleanup();
-          finish(controller, (active) => active.error(error));
-          resolve();
-        };
-        incoming.once("readable", onReadable);
-        incoming.once("end", onEnd);
-        incoming.once("error", onError);
       });
     },
     cancel() {
       closed = true;
+      waiting = null;
       incoming.destroy();
     },
   });

@@ -120,6 +120,19 @@ test("an oversized socket is destroyed", async () => {
   assert.equal(destroyed, true);
 });
 
+test("a socket error after buffered bytes rejects the read", async () => {
+  const incoming = new PassThrough();
+  incoming.statusCode = 200;
+  incoming.headers = { "content-type": "video/mp4" };
+  const response = incomingResponse(incoming);
+  const reader = response.body.getReader();
+  incoming.write(Buffer.from("abcd"));
+  const first = await reader.read();
+  assert.equal(Buffer.from(first.value).toString(), "abcd");
+  incoming.destroy(new Error("reset"));
+  await assert.rejects(reader.read(), /reset/);
+});
+
 test("an incoming response pauses until it is read", async () => {
   const incoming = new PassThrough();
   incoming.statusCode = 200;
